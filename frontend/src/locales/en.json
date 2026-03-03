@@ -1,0 +1,54 @@
+{
+  "nav": {
+    "home": "Home",
+    "events": "Events",
+    "fighters": "Fighters"
+  },
+  "home": {
+    "nextEvent": "Next Event",
+    "viewCard": "View Full Card",
+    "allEvents": "All Events",
+    "fights": "fights"
+  },
+  "fight": {
+    "vs": "vs",
+    "prediction": "Prediction",
+    "winner": "Predicted Winner",
+    "confidence": "Confidence",
+    "method": "Finish Method",
+    "round": "Round",
+    "time": "Time",
+    "keyFactors": "Key Factors",
+    "generatedAt": "Generated",
+    "mainCard": "Main Card",
+    "prelims": "Prelims",
+    "earlyPrelims": "Early Prelims"
+  },
+  "stats": {
+    "wins": "Wins",
+    "losses": "Losses",
+    "draws": "Draws",
+    "ko": "KO/TKO",
+    "sub": "Submission",
+    "dec": "Decision",
+    "winMethod": "Win Methods",
+    "vulnerabilities": "Vulnerability Profile",
+    "advanced": "Advanced Stats",
+    "sigStrikes": "Sig. Strikes",
+    "strikeAcc": "Strike Accuracy",
+    "tdAvg": "Takedown Avg",
+    "tdDef": "Takedown Defense"
+  },
+  "betting": {
+    "insight": "Betting Insight",
+    "vulnerability": "Vulnerability Alert",
+    "value": "Value Bet Detected"
+  },
+  "common": {
+    "loading": "Loading...",
+    "lastUpdated": "Last updated",
+    "justNow": "Just now",
+    "back": "Back",
+    "noFights": "No fights in this section"
+  }
+}

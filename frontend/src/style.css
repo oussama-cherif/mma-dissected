@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+[lang="ar"] body {
+  font-family: 'Noto Sans Arabic', sans-serif;
+}
