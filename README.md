@@ -23,7 +23,7 @@ Supports **English**, **French**, and **Arabic** (with full RTL layout).
 | Styling | Tailwind CSS (dark theme) |
 | i18n | vue-i18n v9 |
 | Charts | Chart.js via vue-chartjs |
-| Predictions | Anthropic API |
+| Predictions | Stats-based engine with vulnerability cross-referencing |
 | Live Data | SportRadar MMA API |
 | Scheduler | APScheduler |
 | Database | SQLite (dev) / PostgreSQL (prod) |
@@ -34,20 +34,20 @@ Supports **English**, **French**, and **Arabic** (with full RTL layout).
 
 - Python 3.12+
 - Node.js 20+
-- Docker & Docker Compose (optional)
+- Docker & Docker Compose (optional, for containerized setup)
 
 ### Option 1: Docker (Recommended)
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/mma-dissected.git
+git clone https://github.com/oussama-cherif/mma-dissected.git
 cd mma-dissected
 
 # Copy environment variables
 cp .env.example .env
-# Edit .env with your API keys
 
-# Start all services
+# Start all services (backend + PostgreSQL + frontend)
+# Migrations and seed data run automatically on first start
 docker compose up --build
 ```
 
@@ -64,40 +64,44 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py createsuperuser
+python seed_data.py
+python manage.py createsuperuser  # optional, for admin panel
 python manage.py runserver
 ```
 
-**Frontend:**
+**Frontend (separate terminal):**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000/api/health/
+
 ### Environment Variables
 
-Copy `.env.example` to `.env` and fill in your keys:
+Copy `.env.example` to `.env`:
 
-| Variable | Description |
-|---|---|
-| `DJANGO_SECRET_KEY` | Django secret key |
-| `ANTHROPIC_API_KEY` | Anthropic API key for predictions |
-| `SPORTRADAR_API_KEY` | SportRadar MMA API key |
-| `VITE_API_BASE_URL` | Backend API URL (default: http://localhost:8000/api) |
+| Variable | Required | Description |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Yes | Django secret key (any random string for dev) |
+| `SPORTRADAR_API_KEY` | No | SportRadar MMA API key (for live data sync) |
+| `VITE_API_BASE_URL` | No | Backend API URL (default: http://localhost:8000/api) |
 
 ## API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/events/` | All events |
-| GET | `/api/events/:id/` | Event detail with fights |
+| GET | `/api/events/` | All events, newest first |
+| GET | `/api/events/:id/` | Event detail with all fights and predictions |
 | GET | `/api/events/next/` | Next upcoming event |
+| GET | `/api/fights/:id/` | Fight detail with full fighter stats |
 | GET | `/api/fighters/` | All fighters |
-| GET | `/api/fighters/:id/` | Fighter profile |
-| GET | `/api/predictions/fights/:id/prediction/` | Get fight prediction |
-| POST | `/api/predictions/fights/:id/predict/` | Generate prediction |
-| POST | `/api/sync/card/` | Trigger manual data sync |
+| GET | `/api/fighters/:id/` | Fighter profile with full stats |
+| GET | `/api/predictions/fights/:id/prediction/` | Get prediction for a fight |
+| POST | `/api/predictions/fights/:id/predict/` | Generate/regenerate prediction |
+| POST | `/api/sync/card/` | Trigger manual data sync from SportRadar |
 | GET | `/api/health/` | Health check |
 
 ## Project Structure
@@ -106,21 +110,22 @@ Copy `.env.example` to `.env` and fill in your keys:
 mma-dissected/
 ├── backend/
 │   ├── config/          # Django settings, URLs, WSGI
-│   ├── fighters/        # Fighter model, API views
-│   ├── events/          # Event + Fight models, API views
-│   ├── predictions/     # Prediction model, prediction engine
-│   ├── scraper/         # SportRadar client, scheduler
+│   ├── fighters/        # Fighter model, serializers, API views
+│   ├── events/          # Event + Fight models, serializers, API views
+│   ├── predictions/     # Prediction model, stats-based prediction engine
+│   ├── scraper/         # SportRadar client, APScheduler tasks
+│   ├── seed_data.py     # Database seed script with sample UFC data
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
-│       ├── components/  # Vue components
-│       ├── views/       # Page views
-│       ├── stores/      # Pinia state management
-│       ├── locales/     # i18n translation files
+│       ├── components/  # FightCard, FighterStats, PredictionPanel, etc.
+│       ├── views/       # Home, Events, Event detail, Fight detail
+│       ├── stores/      # Pinia stores (events, predictions)
+│       ├── locales/     # i18n files (en.json, fr.json, ar.json)
 │       └── router/      # Vue Router config
-├── docker-compose.yml
-└── .env.example
+├── docker-compose.yml   # Docker setup (backend + PostgreSQL + frontend)
+└── .env.example         # Environment variable template
 ```
 
 ## License
