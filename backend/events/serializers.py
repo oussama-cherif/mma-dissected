@@ -1,12 +1,14 @@
 from rest_framework import serializers
 from .models import Event, Fight
 from fighters.serializers import FighterListSerializer
+from predictions.serializers import PredictionSerializer
 
 
 class FightListSerializer(serializers.ModelSerializer):
     fighter_a = FighterListSerializer(read_only=True)
     fighter_b = FighterListSerializer(read_only=True)
     winner_id = serializers.PrimaryKeyRelatedField(source="winner", read_only=True)
+    prediction = PredictionSerializer(read_only=True)
 
     class Meta:
         model = Fight
@@ -21,6 +23,7 @@ class FightListSerializer(serializers.ModelSerializer):
             "method",
             "final_round",
             "final_time",
+            "prediction",
         ]
 
 

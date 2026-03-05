@@ -22,7 +22,8 @@
     "generatedAt": "Generated",
     "mainCard": "Main Card",
     "prelims": "Prelims",
-    "earlyPrelims": "Early Prelims"
+    "earlyPrelims": "Early Prelims",
+    "wins": "wins"
   },
   "stats": {
     "wins": "Wins",
