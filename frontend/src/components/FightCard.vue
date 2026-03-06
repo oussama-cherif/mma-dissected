@@ -54,9 +54,9 @@
         </div>
       </div>
 
-      <!-- Winner + method centered below -->
-      <p class="text-center mt-2 text-sm">
-        <span class="font-bold text-green-400">{{ fight.prediction.predicted_winner.name }}</span>{{ ' ' }}<span class="text-gray-400">{{ $t('fight.wins') }} {{ $t('fight.by') }}</span>{{ ' ' }}<span class="font-semibold text-white">{{ topMethod }}</span>
+      <!-- Winner centered below -->
+      <p class="text-center mt-2 text-sm font-bold text-green-400">
+        {{ fight.prediction.predicted_winner.name }} {{ $t('fight.wins') }}
       </p>
     </div>
   </router-link>
@@ -64,10 +64,6 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
-
-const { t } = useI18n()
-
 const props = defineProps({
   fight: { type: Object, required: true },
 })
@@ -80,15 +76,4 @@ const isWinnerB = computed(() =>
   props.fight.prediction?.predicted_winner?.id === props.fight.fighter_b.id
 )
 
-const topMethod = computed(() => {
-  const p = props.fight.prediction
-  if (!p) return ''
-  const dec = p.prob_dec_unanimous + p.prob_dec_split + p.prob_dec_majority
-  const methods = [
-    { label: t('stats.ko'), pct: p.prob_ko_tko },
-    { label: t('stats.sub'), pct: p.prob_submission },
-    { label: t('stats.dec'), pct: dec },
-  ]
-  return methods.reduce((a, b) => a.pct > b.pct ? a : b).label
-})
 </script>

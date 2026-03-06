@@ -13,7 +13,10 @@ export const useEventsStore = defineStore('events', {
     async fetchEvents() {
       const { data } = await api.get('/events/')
       this.events = data.results || data
-      this.nextEvent = this.events.find(e => e.status === 'upcoming') || null
+      const upcoming = this.events
+        .filter(e => e.status === 'upcoming')
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+      this.nextEvent = upcoming[0] || null
     },
 
     async fetchEvent(id) {

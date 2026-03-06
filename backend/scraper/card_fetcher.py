@@ -1,131 +1,161 @@
 import logging
+import time
 from django.utils import timezone
 from fighters.models import Fighter
 from events.models import Event, Fight
-from .sportradar_client import SportRadarClient
+from predictions.predictor import generate_prediction
+from .ufcstats_scraper import scrape_events, scrape_event_fights, scrape_fighter
 
 logger = logging.getLogger(__name__)
 
+DELAY_BETWEEN_REQUESTS = 1.5  # be polite to ufcstats.com
+
 
 def sync_upcoming_events():
-    """Fetch upcoming UFC events from SportRadar and update the database."""
-    client = SportRadarClient()
-
-    try:
-        schedule_data = client.get_schedule()
-    except Exception as e:
-        logger.error(f"Failed to fetch schedule: {e}")
-        return []
-
+    """Scrape upcoming + recent events from ufcstats.com and save to DB."""
     events_synced = []
-    sport_events = schedule_data.get("sport_events", [])
 
-    for event_data in sport_events:
-        event, _ = Event.objects.update_or_create(
-            sportradar_id=event_data["id"],
+    # Scrape upcoming events
+    upcoming = scrape_events(page="completed", limit=3)
+    logger.info(f"Found {len(upcoming)} events to sync")
+
+    for event_data in upcoming:
+        if not event_data["ufcstats_id"] or not event_data["date"]:
+            continue
+
+        event, created = Event.objects.update_or_create(
+            sportradar_id=event_data["ufcstats_id"],
             defaults={
-                "name": event_data.get("name", "UFC Event"),
-                "date": event_data.get("scheduled", timezone.now()),
-                "location": event_data.get("venue", {}).get("city_name", ""),
-                "venue": event_data.get("venue", {}).get("name", ""),
-                "status": _map_status(event_data.get("status", "")),
+                "name": event_data["name"],
+                "date": event_data["date"],
+                "location": event_data["location"],
+                "status": event_data["status"],
                 "last_synced": timezone.now(),
             },
         )
+
+        if event_data["url"]:
+            time.sleep(DELAY_BETWEEN_REQUESTS)
+            _sync_event_fights(event, event_data["url"])
+
         events_synced.append(event)
 
-        _sync_event_fights(client, event, event_data)
+    # Also check upcoming page
+    upcoming_events = scrape_events(page="upcoming", limit=3)
+    for event_data in upcoming_events:
+        if not event_data["ufcstats_id"] or not event_data["date"]:
+            continue
 
-    logger.info(f"Synced {len(events_synced)} events")
+        event, created = Event.objects.update_or_create(
+            sportradar_id=event_data["ufcstats_id"],
+            defaults={
+                "name": event_data["name"],
+                "date": event_data["date"],
+                "location": event_data["location"],
+                "status": "upcoming",
+                "last_synced": timezone.now(),
+            },
+        )
+
+        if event_data["url"]:
+            time.sleep(DELAY_BETWEEN_REQUESTS)
+            _sync_event_fights(event, event_data["url"])
+
+        events_synced.append(event)
+
+    logger.info(f"Synced {len(events_synced)} events total")
     return events_synced
 
 
-def _sync_event_fights(client, event, event_data):
-    """Sync individual fights for an event."""
-    competitions = event_data.get("sport_event_conditions", {}).get("competitors", [])
+def _sync_event_fights(event, event_url):
+    """Scrape fights for an event and save to DB."""
+    try:
+        event_detail = scrape_event_fights(event_url)
+    except Exception as e:
+        logger.error(f"Failed to scrape fights for {event.name}: {e}")
+        return
 
-    for idx, fight_data in enumerate(event_data.get("competitions", [])):
-        competitors = fight_data.get("competitors", [])
-        if len(competitors) < 2:
+    for fight_data in event_detail["fights"]:
+        fighter_a = _upsert_fighter(fight_data["fighter_a"])
+        fighter_b = _upsert_fighter(fight_data["fighter_b"])
+
+        if not fighter_a or not fighter_b:
             continue
 
-        fighter_a = _upsert_fighter(client, competitors[0])
-        fighter_b = _upsert_fighter(client, competitors[1])
+        fight, created = Fight.objects.update_or_create(
+            event=event,
+            fighter_a=fighter_a,
+            fighter_b=fighter_b,
+            defaults={
+                "weight_class": fight_data["weight_class"],
+                "card_section": fight_data["card_section"],
+                "order": fight_data["order"],
+                "method": fight_data["method"],
+            },
+        )
 
-        if fighter_a and fighter_b:
-            Fight.objects.update_or_create(
-                event=event,
-                fighter_a=fighter_a,
-                fighter_b=fighter_b,
-                defaults={
-                    "weight_class": fight_data.get("weight_class", "Unknown"),
-                    "card_section": _map_card_section(fight_data.get("type", "")),
-                    "order": idx,
-                },
-            )
+        # Generate prediction if none exists
+        if not hasattr(fight, "prediction") or fight.prediction is None:
+            try:
+                generate_prediction(fight)
+                logger.info(f"Generated prediction for {fight}")
+            except Exception as e:
+                logger.warning(f"Could not generate prediction for {fight}: {e}")
 
 
-def _upsert_fighter(client, competitor_data):
-    """Create or update a fighter from SportRadar competitor data."""
-    sr_id = competitor_data.get("id")
-    if not sr_id:
+def _upsert_fighter(fighter_data):
+    """Create or update a fighter, scraping their full stats from ufcstats.com."""
+    ufcstats_id = fighter_data.get("ufcstats_id", "")
+    if not ufcstats_id:
         return None
 
-    fighter_defaults = {
-        "name": competitor_data.get("name", "Unknown Fighter"),
-        "nationality": competitor_data.get("nationality", ""),
-    }
+    # Check if we already have this fighter with recent data (< 24h old)
+    try:
+        existing = Fighter.objects.get(sportradar_id=ufcstats_id)
+        age = timezone.now() - existing.last_updated
+        if age.total_seconds() < 86400:
+            return existing
+    except Fighter.DoesNotExist:
+        pass
+
+    # Scrape full fighter stats
+    fighter_url = fighter_data.get("url", "")
+    if not fighter_url:
+        fighter_url = f"http://ufcstats.com/fighter-details/{ufcstats_id}"
 
     try:
-        profile = client.get_fighter_profile(sr_id)
-        stats = profile.get("statistics", {})
-        fighter_defaults.update({
-            "nickname": profile.get("nickname", ""),
-            "weight_class": profile.get("weight_class", ""),
-            "record_wins": stats.get("wins", 0),
-            "record_losses": stats.get("losses", 0),
-            "record_draws": stats.get("draws", 0),
-            "wins_ko_tko": stats.get("wins_ko_tko", 0),
-            "wins_submission": stats.get("wins_submission", 0),
-            "wins_decision": stats.get("wins_decision", 0),
-            "losses_ko_tko": stats.get("losses_ko_tko", 0),
-            "losses_submission": stats.get("losses_submission", 0),
-            "losses_decision": stats.get("losses_decision", 0),
-            "sig_strikes_per_min": stats.get("sig_strikes_per_min"),
-            "strike_accuracy": stats.get("strike_accuracy"),
-            "takedown_avg": stats.get("takedown_avg"),
-            "takedown_accuracy": stats.get("takedown_accuracy"),
-            "takedown_defense": stats.get("takedown_defense"),
-            "sub_attempts_per_min": stats.get("sub_attempts_per_min"),
-        })
+        time.sleep(DELAY_BETWEEN_REQUESTS)
+        stats = scrape_fighter(fighter_url)
     except Exception as e:
-        logger.warning(f"Could not fetch profile for fighter {sr_id}: {e}")
+        logger.warning(f"Could not scrape fighter {fighter_data['name']}: {e}")
+        # Create with minimal info
+        fighter, _ = Fighter.objects.update_or_create(
+            sportradar_id=ufcstats_id,
+            defaults={"name": fighter_data["name"], "weight_class": ""},
+        )
+        return fighter
 
     fighter, _ = Fighter.objects.update_or_create(
-        sportradar_id=sr_id,
-        defaults=fighter_defaults,
+        sportradar_id=ufcstats_id,
+        defaults={
+            "name": stats["name"] or fighter_data["name"],
+            "nickname": stats["nickname"],
+            "weight_class": stats["weight_class"],
+            "record_wins": stats["record_wins"],
+            "record_losses": stats["record_losses"],
+            "record_draws": stats["record_draws"],
+            "wins_ko_tko": stats["wins_ko_tko"],
+            "wins_submission": stats["wins_submission"],
+            "wins_decision": stats["wins_decision"],
+            "losses_ko_tko": stats["losses_ko_tko"],
+            "losses_submission": stats["losses_submission"],
+            "losses_decision": stats["losses_decision"],
+            "sig_strikes_per_min": stats["sig_strikes_per_min"],
+            "strike_accuracy": stats["strike_accuracy"],
+            "takedown_avg": stats["takedown_avg"],
+            "takedown_accuracy": stats["takedown_accuracy"],
+            "takedown_defense": stats["takedown_defense"],
+            "sub_attempts_per_min": stats["sub_attempts_per_min"],
+        },
     )
     return fighter
-
-
-def _map_status(sr_status):
-    """Map SportRadar event status to our internal status."""
-    mapping = {
-        "not_started": "upcoming",
-        "live": "live",
-        "closed": "completed",
-        "ended": "completed",
-    }
-    return mapping.get(sr_status.lower(), "upcoming")
-
-
-def _map_card_section(fight_type):
-    """Map SportRadar fight type to card section."""
-    fight_type_lower = fight_type.lower()
-    if "main" in fight_type_lower:
-        return "main"
-    elif "prelim" in fight_type_lower and "early" in fight_type_lower:
-        return "early"
-    elif "prelim" in fight_type_lower:
-        return "prelim"
-    return "main"
