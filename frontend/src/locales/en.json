@@ -11,7 +11,7 @@
     "fights": "fights"
   },
   "fight": {
-    "vs": "vs",
+    "vs": "VS",
     "prediction": "Prediction",
     "winner": "Predicted Winner",
     "confidence": "Confidence",
@@ -21,9 +21,13 @@
     "keyFactors": "Key Factors",
     "generatedAt": "Generated",
     "mainCard": "Main Card",
+    "coMain": "Co-Main",
     "prelims": "Prelims",
     "earlyPrelims": "Early Prelims",
-    "wins": "wins"
+    "wins": "wins",
+    "by": "by",
+    "record": "Record",
+    "viewDetails": "View Details"
   },
   "stats": {
     "wins": "Wins",
@@ -33,12 +37,14 @@
     "sub": "Submission",
     "dec": "Decision",
     "winMethod": "Win Methods",
+    "lossMethod": "Loss Methods",
     "vulnerabilities": "Vulnerability Profile",
     "advanced": "Advanced Stats",
-    "sigStrikes": "Sig. Strikes",
+    "sigStrikes": "Sig. Strikes/min",
     "strikeAcc": "Strike Accuracy",
     "tdAvg": "Takedown Avg",
-    "tdDef": "Takedown Defense"
+    "tdDef": "Takedown Defense",
+    "subAttempts": "Sub Attempts/15min"
   },
   "betting": {
     "insight": "Betting Insight",
@@ -50,6 +56,10 @@
     "lastUpdated": "Last updated",
     "justNow": "Just now",
     "back": "Back",
-    "noFights": "No fights in this section"
+    "noFights": "No fights in this section",
+    "days": "Days",
+    "hours": "Hrs",
+    "mins": "Min",
+    "secs": "Sec"
   }
 }

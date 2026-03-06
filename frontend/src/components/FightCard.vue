@@ -1,65 +1,63 @@
 <template>
   <router-link
     :to="`/fight/${fight.id}`"
-    class="block bg-ufc-dark rounded-lg p-4 border border-gray-800 hover:border-ufc-red/40 transition-colors"
+    class="block card card-hover p-4 sm:p-5 group"
   >
+    <!-- Fighters Row -->
     <div class="flex items-center">
-      <div class="flex-1">
-        <p :class="['font-semibold', isWinnerA ? 'text-green-400' : 'text-white']">
+      <div class="flex-1 min-w-0">
+        <p :class="['font-bold text-sm sm:text-base truncate', isWinnerA ? 'text-green-400' : 'text-white']">
           {{ fight.fighter_a.name }}
-          <span v-if="isWinnerA" class="text-[10px] ml-1">&#9668;</span>
+          <span v-if="isWinnerA" class="text-green-500 text-xs ml-1">&#9664;</span>
         </p>
-        <p class="text-gray-500 text-xs">{{ fight.fighter_a.record }}</p>
+        <p class="text-gray-500 text-xs mt-0.5">{{ fight.fighter_a.record }}</p>
       </div>
 
-      <div class="px-4 text-center shrink-0">
-        <span class="text-gray-500 text-sm">{{ $t('fight.vs') }}</span>
-        <p class="text-gray-600 text-xs mt-1">{{ fight.weight_class }}</p>
+      <div class="px-3 sm:px-5 text-center shrink-0">
+        <div class="w-9 h-9 rounded-full bg-ufc-red/10 border border-ufc-red/20 flex items-center justify-center">
+          <span class="text-ufc-red text-[10px] font-bold">{{ $t('fight.vs') }}</span>
+        </div>
+        <p class="text-gray-600 text-[10px] mt-1.5">{{ fight.weight_class }}</p>
       </div>
 
-      <div class="flex-1 text-right">
-        <p :class="['font-semibold', isWinnerB ? 'text-green-400' : 'text-white']">
-          <span v-if="isWinnerB" class="text-[10px] mr-1">&#9658;</span>
+      <div class="flex-1 min-w-0 text-right">
+        <p :class="['font-bold text-sm sm:text-base truncate', isWinnerB ? 'text-green-400' : 'text-white']">
+          <span v-if="isWinnerB" class="text-green-500 text-xs mr-1">&#9654;</span>
           {{ fight.fighter_b.name }}
         </p>
-        <p class="text-gray-500 text-xs">{{ fight.fighter_b.record }}</p>
+        <p class="text-gray-500 text-xs mt-0.5">{{ fight.fighter_b.record }}</p>
       </div>
     </div>
 
-    <div v-if="fight.prediction" class="mt-3 pt-3 border-t border-gray-700/50">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-2">
+    <!-- Prediction: gradient bar + centered info -->
+    <div v-if="fight.prediction" class="mt-3 pt-3 border-t border-gray-800/40">
+      <!-- Green-to-red gradient bar -->
+      <div
+        class="relative h-8 rounded-lg overflow-hidden"
+        :style="{
+          background: isWinnerA
+            ? 'linear-gradient(to right, rgba(34,197,94,0.25), rgba(34,197,94,0.05) 50%, rgba(239,68,68,0.05) 50%, rgba(239,68,68,0.25))'
+            : 'linear-gradient(to right, rgba(239,68,68,0.25), rgba(239,68,68,0.05) 50%, rgba(34,197,94,0.05) 50%, rgba(34,197,94,0.25))'
+        }"
+      >
+        <div class="absolute inset-0 flex items-center justify-center">
           <span
             :class="[
-              'text-xs font-bold px-2 py-0.5 rounded',
-              fight.prediction.confidence > 70 ? 'bg-green-900/60 text-green-400' :
-              fight.prediction.confidence > 50 ? 'bg-yellow-900/60 text-yellow-400' :
-              'bg-gray-700 text-gray-400'
+              'text-lg font-extrabold tabular-nums',
+              fight.prediction.confidence > 70 ? 'text-green-400' :
+              fight.prediction.confidence > 50 ? 'text-yellow-400' :
+              'text-gray-400'
             ]"
           >
             {{ fight.prediction.confidence }}%
           </span>
-          <span class="text-xs text-gray-400">
-            {{ fight.prediction.predicted_winner.name }} {{ $t('fight.wins') }}
-          </span>
         </div>
-        <span class="text-[10px] text-gray-600">{{ topMethod }}</span>
       </div>
 
-      <div class="flex gap-3 text-[10px]">
-        <div class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
-          <span class="text-gray-500">{{ $t('stats.ko') }} {{ fight.prediction.prob_ko_tko }}%</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>
-          <span class="text-gray-500">{{ $t('stats.sub') }} {{ fight.prediction.prob_submission }}%</span>
-        </div>
-        <div class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-yellow-500 inline-block"></span>
-          <span class="text-gray-500">{{ $t('stats.dec') }} {{ decisionPct }}%</span>
-        </div>
-      </div>
+      <!-- Winner + method centered below -->
+      <p class="text-center mt-2 text-sm">
+        <span class="font-bold text-green-400">{{ fight.prediction.predicted_winner.name }}</span>{{ ' ' }}<span class="text-gray-400">{{ $t('fight.wins') }} {{ $t('fight.by') }}</span>{{ ' ' }}<span class="font-semibold text-white">{{ topMethod }}</span>
+      </p>
     </div>
   </router-link>
 </template>
@@ -82,21 +80,15 @@ const isWinnerB = computed(() =>
   props.fight.prediction?.predicted_winner?.id === props.fight.fighter_b.id
 )
 
-const decisionPct = computed(() => {
-  const p = props.fight.prediction
-  if (!p) return 0
-  return p.prob_dec_unanimous + p.prob_dec_split + p.prob_dec_majority
-})
-
 const topMethod = computed(() => {
   const p = props.fight.prediction
   if (!p) return ''
+  const dec = p.prob_dec_unanimous + p.prob_dec_split + p.prob_dec_majority
   const methods = [
     { label: t('stats.ko'), pct: p.prob_ko_tko },
     { label: t('stats.sub'), pct: p.prob_submission },
-    { label: t('stats.dec'), pct: decisionPct.value },
+    { label: t('stats.dec'), pct: dec },
   ]
-  const top = methods.reduce((a, b) => a.pct > b.pct ? a : b)
-  return `${top.label} ${top.pct}%`
+  return methods.reduce((a, b) => a.pct > b.pct ? a : b).label
 })
 </script>

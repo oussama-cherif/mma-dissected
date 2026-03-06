@@ -1,10 +1,13 @@
 <template>
   <div class="flex items-center gap-2">
-    <span class="w-12 text-gray-500 text-xs">{{ label }}</span>
-    <div class="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
-      <div :class="[color, 'h-full rounded-full transition-all']" :style="{ width: value + '%' }" />
+    <span class="w-16 text-gray-500 text-xs truncate">{{ label }}</span>
+    <div class="flex-1 bg-gray-800 rounded-full h-2 overflow-hidden">
+      <div
+        :class="[color, 'h-full rounded-full transition-all duration-500']"
+        :style="{ width: value + '%' }"
+      />
     </div>
-    <span class="w-10 text-right text-xs text-gray-400">{{ value }}%</span>
+    <span class="w-10 text-right text-xs font-medium text-gray-400 tabular-nums">{{ value }}%</span>
   </div>
 </template>
 
