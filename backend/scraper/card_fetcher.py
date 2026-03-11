@@ -13,9 +13,15 @@ DELAY_BETWEEN_REQUESTS = 1.5  # be polite to ufcstats.com
 
 def sync_upcoming_events():
     """Scrape upcoming + recent events from ufcstats.com and save to DB."""
+    # Auto-mark past events as completed
+    now = timezone.now()
+    Event.objects.filter(status="upcoming", date__lt=now).update(
+        status="completed"
+    )
+
     events_synced = []
 
-    # Scrape upcoming events
+    # Scrape completed events
     upcoming = scrape_events(page="completed", limit=3)
     logger.info(f"Found {len(upcoming)} events to sync")
 
