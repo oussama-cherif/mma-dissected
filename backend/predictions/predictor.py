@@ -115,33 +115,71 @@ def generate_stats_prediction(fight):
 
     # Vulnerability cross-reference: A's strengths vs B's weaknesses
     vuln_notes = []
+    vuln_severity = 0  # track overall severity for betting insight
 
     # KO vulnerability
     ko_vuln_b = a.wins_ko_tko * b.losses_ko_tko
     ko_vuln_a = b.wins_ko_tko * a.losses_ko_tko
-    if ko_vuln_b > 4:
+    if ko_vuln_b >= 2 and (a.wins_ko_tko >= 2 or b.losses_ko_tko >= 2):
         score_a += ko_vuln_b * 0.5
+        severity = "HIGH" if ko_vuln_b >= 6 else "MODERATE"
+        vuln_severity += ko_vuln_b
         vuln_notes.append(
-            f"{b.name} has {b.losses_ko_tko} KO/TKO losses and {a.name} has {a.wins_ko_tko} KO/TKO wins — striking vulnerability detected."
+            f"[{severity}] {b.name} has been KO/TKO'd {b.losses_ko_tko} times and {a.name} has {a.wins_ko_tko} KO/TKO wins — striking danger."
         )
-    if ko_vuln_a > 4:
+    if ko_vuln_a >= 2 and (b.wins_ko_tko >= 2 or a.losses_ko_tko >= 2):
         score_b += ko_vuln_a * 0.5
+        severity = "HIGH" if ko_vuln_a >= 6 else "MODERATE"
+        vuln_severity += ko_vuln_a
         vuln_notes.append(
-            f"{a.name} has {a.losses_ko_tko} KO/TKO losses and {b.name} has {b.wins_ko_tko} KO/TKO wins — striking vulnerability detected."
+            f"[{severity}] {a.name} has been KO/TKO'd {a.losses_ko_tko} times and {b.name} has {b.wins_ko_tko} KO/TKO wins — striking danger."
         )
 
     # Submission vulnerability
     sub_vuln_b = a.wins_submission * b.losses_submission
     sub_vuln_a = b.wins_submission * a.losses_submission
-    if sub_vuln_b > 2:
+    if sub_vuln_b >= 2 and (a.wins_submission >= 2 or b.losses_submission >= 2):
         score_a += sub_vuln_b * 0.8
+        severity = "HIGH" if sub_vuln_b >= 4 else "MODERATE"
+        vuln_severity += sub_vuln_b
         vuln_notes.append(
-            f"{b.name} has {b.losses_submission} submission losses and {a.name} has {a.wins_submission} submission wins — grappling vulnerability detected."
+            f"[{severity}] {b.name} has {b.losses_submission} submission losses and {a.name} has {a.wins_submission} submission wins — grappling danger."
         )
-    if sub_vuln_a > 2:
+    if sub_vuln_a >= 2 and (b.wins_submission >= 2 or a.losses_submission >= 2):
         score_b += sub_vuln_a * 0.8
+        severity = "HIGH" if sub_vuln_a >= 4 else "MODERATE"
+        vuln_severity += sub_vuln_a
         vuln_notes.append(
-            f"{a.name} has {a.losses_submission} submission losses and {b.name} has {b.wins_submission} submission wins — grappling vulnerability detected."
+            f"[{severity}] {a.name} has {a.losses_submission} submission losses and {b.name} has {b.wins_submission} submission wins — grappling danger."
+        )
+
+    # Decision vulnerability — fighters who can't finish vs fighters who go the distance
+    a_finish_rate = (a.wins_ko_tko + a.wins_submission) / max(a.record_wins, 1)
+    b_finish_rate = (b.wins_ko_tko + b.wins_submission) / max(b.record_wins, 1)
+    a_finished_rate = (a.losses_ko_tko + a.losses_submission) / max(a.record_losses, 1) if a.record_losses else 0
+    b_finished_rate = (b.losses_ko_tko + b.losses_submission) / max(b.record_losses, 1) if b.record_losses else 0
+
+    if a_finish_rate > 0.7 and b_finished_rate > 0.6 and b.record_losses >= 2:
+        vuln_severity += 2
+        vuln_notes.append(
+            f"[MODERATE] {b.name} has been finished in {round(b_finished_rate * 100)}% of losses and {a.name} finishes {round(a_finish_rate * 100)}% of wins — high stoppage risk."
+        )
+    if b_finish_rate > 0.7 and a_finished_rate > 0.6 and a.record_losses >= 2:
+        vuln_severity += 2
+        vuln_notes.append(
+            f"[MODERATE] {a.name} has been finished in {round(a_finished_rate * 100)}% of losses and {b.name} finishes {round(b_finish_rate * 100)}% of wins — high stoppage risk."
+        )
+
+    # Chin vulnerability — fighters with high KO loss rate
+    if a.record_losses >= 3 and a.losses_ko_tko / max(a.record_losses, 1) >= 0.5:
+        vuln_severity += 1
+        vuln_notes.append(
+            f"[MODERATE] {a.name} has been stopped by strikes in {a.losses_ko_tko} of {a.record_losses} losses — chin concerns."
+        )
+    if b.record_losses >= 3 and b.losses_ko_tko / max(b.record_losses, 1) >= 0.5:
+        vuln_severity += 1
+        vuln_notes.append(
+            f"[MODERATE] {b.name} has been stopped by strikes in {b.losses_ko_tko} of {b.record_losses} losses — chin concerns."
         )
 
     # Calculate confidence and winner
@@ -174,6 +212,8 @@ def generate_stats_prediction(fight):
     vulnerability_note = " ".join(vuln_notes) if vuln_notes else ""
 
     key_factors = []
+    loser = b if winner == a else a
+
     if (winner.sig_strikes_per_min or 0) > 5:
         key_factors.append(f"{winner.name} has a high striking output ({winner.sig_strikes_per_min}/min)")
     if (winner.takedown_avg or 0) > 2:
@@ -182,8 +222,35 @@ def generate_stats_prediction(fight):
         key_factors.append(f"{winner.name} has elite takedown defense ({winner.takedown_defense}%)")
     if winner.record_wins > 20:
         key_factors.append(f"{winner.name} has deep experience with {winner.record_wins} wins")
+    if (loser.takedown_defense or 0) < 55 and (winner.takedown_avg or 0) > 1.5:
+        key_factors.append(f"{loser.name} has weak takedown defense ({loser.takedown_defense}%) against an active wrestler")
+    if (winner.strike_accuracy or 0) > 55:
+        key_factors.append(f"{winner.name} lands strikes at {winner.strike_accuracy}% accuracy")
     if not key_factors:
         key_factors.append(f"{winner.name} has a statistical edge based on overall record and fighting style")
+
+    # Generate betting insight based on vulnerabilities and method probabilities
+    betting_insight = ""
+    if vuln_severity >= 4:
+        dominant_method = max(
+            [("KO/TKO", ko_pct), ("submission", sub_pct), ("decision", dec_pct)],
+            key=lambda x: x[1]
+        )
+        betting_insight = (
+            f"Significant stylistic mismatches detected. "
+            f"{winner.name}'s most likely path to victory is by {dominant_method[0]} ({dominant_method[1]}%). "
+            f"The vulnerability profile suggests this fight may not go the distance."
+        )
+    elif vuln_severity >= 2:
+        betting_insight = (
+            f"{winner.name} holds a notable edge in this matchup. "
+            f"Method-specific vulnerabilities could create value on finish props."
+        )
+    elif confidence >= 70:
+        betting_insight = (
+            f"{winner.name} is a strong statistical favorite at {confidence}% confidence. "
+            f"The data favors a {('KO/TKO' if ko_pct > sub_pct and ko_pct > dec_pct else 'submission' if sub_pct > dec_pct else 'decision')} outcome."
+        )
 
     return {
         "winner": winner.name,
@@ -199,7 +266,7 @@ def generate_stats_prediction(fight):
         "predicted_time": "",
         "key_factors": key_factors,
         "vulnerability_note": vulnerability_note,
-        "betting_insight": "",
+        "betting_insight": betting_insight,
     }
 
 
