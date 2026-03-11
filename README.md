@@ -11,8 +11,9 @@ Supports **English**, **French**, and **Arabic** (with full RTL layout).
 - **Vulnerability Detection**: Cross-references how fighters win against how opponents have lost — flags stylistic mismatches and potential upsets
 - **Fighter Stats**: Sig. strikes/min, strike accuracy, takedown averages, defense rates, submission attempts
 - **Betting Insights**: Value bet detection based on method probability analysis
-- **Auto-Sync**: Daily automatic card data updates via SportRadar API
+- **Auto-Sync**: Daily automatic card data updates via ufcstats.com scraper
 - **Multilingual**: EN / FR / AR with RTL support for Arabic
+- **CI/CD**: GitHub Actions pipeline with backend tests and frontend build checks
 
 ## Tech Stack
 
@@ -24,7 +25,7 @@ Supports **English**, **French**, and **Arabic** (with full RTL layout).
 | i18n | vue-i18n v9 |
 | Charts | Chart.js via vue-chartjs |
 | Predictions | Stats-based engine with vulnerability cross-referencing |
-| Live Data | SportRadar MMA API |
+| Live Data | ufcstats.com scraper (BeautifulSoup4 + lxml) |
 | Scheduler | APScheduler |
 | Database | SQLite (dev) / PostgreSQL (prod) |
 
@@ -64,7 +65,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 python manage.py migrate
-python seed_data.py
+python manage.py sync_events  # fetch real UFC data from ufcstats.com
 python manage.py createsuperuser  # optional, for admin panel
 python manage.py runserver
 ```
@@ -86,7 +87,7 @@ Copy `.env.example` to `.env`:
 | Variable | Required | Description |
 |---|---|---|
 | `DJANGO_SECRET_KEY` | Yes | Django secret key (any random string for dev) |
-| `SPORTRADAR_API_KEY` | No | SportRadar MMA API key (for live data sync) |
+| `SPORTRADAR_API_KEY` | No | Not used — data comes from ufcstats.com scraper |
 | `VITE_API_BASE_URL` | No | Backend API URL (default: http://localhost:8000/api) |
 
 ## API Endpoints
@@ -101,7 +102,7 @@ Copy `.env.example` to `.env`:
 | GET | `/api/fighters/:id/` | Fighter profile with full stats |
 | GET | `/api/predictions/fights/:id/prediction/` | Get prediction for a fight |
 | POST | `/api/predictions/fights/:id/predict/` | Generate/regenerate prediction |
-| POST | `/api/sync/card/` | Trigger manual data sync from SportRadar |
+| POST | `/api/sync/card/` | Trigger manual data sync from ufcstats.com |
 | GET | `/api/health/` | Health check |
 
 ## Project Structure
@@ -113,8 +114,7 @@ mma-dissected/
 │   ├── fighters/        # Fighter model, serializers, API views
 │   ├── events/          # Event + Fight models, serializers, API views
 │   ├── predictions/     # Prediction model, stats-based prediction engine
-│   ├── scraper/         # SportRadar client, APScheduler tasks
-│   ├── seed_data.py     # Database seed script with sample UFC data
+│   ├── scraper/         # ufcstats.com scraper, APScheduler tasks
 │   ├── manage.py
 │   └── requirements.txt
 ├── frontend/
