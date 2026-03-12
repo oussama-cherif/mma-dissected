@@ -258,7 +258,7 @@ event, created = Event.objects.update_or_create(
         "date": datetime(2025, 7, 12, 22, 0, tzinfo=timezone.utc),
         "location": "Las Vegas, Nevada",
         "venue": "T-Mobile Arena",
-        "status": "upcoming",
+        "status": "completed",
     },
 )
 print(f"  {'created' if created else 'updated'}: {event}")

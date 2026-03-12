@@ -56,6 +56,9 @@ htmlcov/
 .coverage
 .coverage.*
 
+# Claude Code
+.claude/
+
 # Misc
 *.bak
 *.tmp

@@ -4,6 +4,11 @@ A full-stack web application for UFC fight analysis and predictions. Displays up
 
 Supports **English**, **French**, and **Arabic** (with full RTL layout).
 
+## Live Demo
+
+- **Frontend**: [frontend-ten-iota-12.vercel.app](https://frontend-ten-iota-12.vercel.app)
+- **API**: [backend-production-5dd7.up.railway.app/api/events/](https://backend-production-5dd7.up.railway.app/api/events/)
+
 ## Features
 
 - **UFC Event Cards**: Full card display — Main Card, Prelims, Early Prelims
@@ -87,8 +92,10 @@ Copy `.env.example` to `.env`:
 | Variable | Required | Description |
 |---|---|---|
 | `DJANGO_SECRET_KEY` | Yes | Django secret key (any random string for dev) |
+| `ANTHROPIC_API_KEY` | No | Anthropic Claude API key (for AI-powered predictions) |
 | `SPORTRADAR_API_KEY` | No | Not used — data comes from ufcstats.com scraper |
 | `VITE_API_BASE_URL` | No | Backend API URL (default: http://localhost:8000/api) |
+| `DATABASE_URL` | No | PostgreSQL connection string (uses SQLite if empty) |
 
 ## API Endpoints
 
@@ -126,6 +133,23 @@ mma-dissected/
 │       └── router/      # Vue Router config
 ├── docker-compose.yml   # Docker setup (backend + PostgreSQL + frontend)
 └── .env.example         # Environment variable template
+```
+
+## Deployment
+
+| Service | Platform |
+|---|---|
+| Frontend | [Vercel](https://vercel.com) |
+| Backend | [Railway](https://railway.com) |
+| Database | PostgreSQL (Railway) |
+
+**Redeploy:**
+```bash
+# Frontend
+cd frontend && vercel --prod
+
+# Backend (from repo root)
+railway up --detach
 ```
 
 ## License
